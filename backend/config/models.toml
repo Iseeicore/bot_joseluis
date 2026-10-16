@@ -1,0 +1,34 @@
+active_profile = "qwen3b"
+summary_profile = "qwen7b"
+
+[ollama]
+base_url = "http://127.0.0.1:11434"
+timeout_seconds = 600
+
+[prompts]
+system_file = "config/prompts/analyst_system.md"
+notes_file = "config/prompts/notes_system.md"
+summary_file = "config/prompts/summary_system.md"
+
+[storage]
+notes_dir = "data/notes"
+
+[profiles.qwen3b]
+model = "qwen2.5:3b"
+num_ctx = 8192
+temperature = 0.2
+top_p = 0.9
+keep_alive = "30m"
+chunk_size_chars = 6000
+chunk_overlap_chars = 400
+max_output_tokens = 1024
+
+[profiles.qwen7b]
+model = "qwen2.5:7b"
+num_ctx = 8192
+temperature = 0.2
+top_p = 0.9
+keep_alive = "30m"
+chunk_size_chars = 6000
+chunk_overlap_chars = 400
+max_output_tokens = 1024
