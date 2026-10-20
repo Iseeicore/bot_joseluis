@@ -1,0 +1,56 @@
+name: bot-joseluis
+
+services:
+  ollama:
+    image: ollama/ollama:0.40.5
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - stack
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      APP_OLLAMA__BASE_URL: http://ollama:11434
+    volumes:
+      - backend-data:/app/data
+    networks:
+      - stack
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.11.4
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY:?Falta WEBUI_SECRET_KEY, copia .env.example a .env y define un valor}"
+    volumes:
+      - open-webui-data:/app/backend/data
+    networks:
+      - stack
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+networks:
+  stack:
+
+volumes:
+  ollama-models:
+  backend-data:
+  open-webui-data:
