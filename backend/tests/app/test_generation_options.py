@@ -12,7 +12,9 @@ def test_maps_every_generation_field_from_the_profile():
         keep_alive="10m",
         chunk_size_chars=5000,
         chunk_overlap_chars=200,
+        summary_batch_chars=9000,
         max_output_tokens=512,
+        think=True,
     )
     assert to_generation_options(profile) == GenerationOptions(
         model="qwen2.5:7b",
@@ -21,4 +23,5 @@ def test_maps_every_generation_field_from_the_profile():
         top_p=0.8,
         keep_alive="10m",
         max_output_tokens=512,
+        think=True,
     )

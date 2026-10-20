@@ -77,7 +77,9 @@ def main() -> None:
         summary_setup = SummarySetup(
             llm, load_prompt_file(settings.summary_prompt_path), to_generation_options(summary_profile), summary_profile.chunk_size_chars
         )
-        report["summary"] = summarize_analysis(analysis, args.summary, summary_setup)
+        summary = summarize_analysis(analysis, args.summary, summary_setup)
+        report["summary"] = summary.text
+        report["summary_truncated"] = summary.truncated
         report["summary_seconds"] = round(time.time() - started)
     report["flagged_examples"] = [{"pages": [n.first_page, n.last_page], "facts": list(n.unverified_facts)[:6]} for n in flagged[:15]]
     print(json.dumps(report, ensure_ascii=False, indent=2))

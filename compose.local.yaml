@@ -1,0 +1,17 @@
+services:
+  ollama:
+    profiles: ["ollama-container"]
+
+  backend:
+    environment:
+      APP_OLLAMA__BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: !reset {}
+
+  open-webui:
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: !reset {}

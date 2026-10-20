@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from src.document_analysis.application.build_analysis_messages import build_summary_messages
-from src.document_analysis.domain.models import DocumentAnalysis, GenerationOptions
+from src.document_analysis.application.progress import ProgressCallback, ignore_progress
+from src.document_analysis.domain.models import DocumentAnalysis, Generation, GenerationOptions
 from src.document_analysis.domain.ports import LLMClient
 from src.shared.constants.prompts.analysis import NO_CONTENT_NOTE_TEXT, pages_label
 from src.shared.constants.texts.llm import NO_NOTES_ANSWER_TEXT
@@ -24,6 +25,7 @@ class SummaryItem:
     first_page: int
     last_page: int
     text: str
+    truncated: bool = False
 
     def render(self) -> str:
         return f"{pages_label(self.first_page, self.last_page)}\n{self.text}"
@@ -44,22 +46,33 @@ def batch_items(items: list[SummaryItem], batch_chars: int) -> list[list[Summary
 
 def reduce_batch(batch: list[SummaryItem], request: str, setup: SummarySetup, position: int) -> SummaryItem:
     notes_text = ITEM_SEPARATOR.join(item.render() for item in batch)
-    answer = setup.llm.generate(build_summary_messages(setup.summary_prompt, request, notes_text), setup.options).strip()
+    generation = setup.llm.generate(build_summary_messages(setup.summary_prompt, request, notes_text), setup.options)
+    answer = generation.text.strip()
     if not answer:
         raise EmptyModelAnswerError(setup.options.model, position)
-    return SummaryItem(batch[0].first_page, batch[-1].last_page, answer)
+    return SummaryItem(batch[0].first_page, batch[-1].last_page, answer, generation.truncated)
 
 
-def summarize_analysis(analysis: DocumentAnalysis, request: str, setup: SummarySetup) -> str:
+def reduce_round(batches: list[list[SummaryItem]], request: str, setup: SummarySetup, on_progress: ProgressCallback) -> list[SummaryItem]:
+    reduced: list[SummaryItem] = []
+    for position, batch in enumerate(batches):
+        reduced.append(reduce_batch(batch, request, setup, position))
+        on_progress(len(reduced), len(batches))
+    return reduced
+
+
+def summarize_analysis(
+    analysis: DocumentAnalysis, request: str, setup: SummarySetup, on_progress: ProgressCallback = ignore_progress
+) -> Generation:
     items = [
         SummaryItem(note.first_page, note.last_page, note.text)
         for note in analysis.notes
         if note.index not in analysis.failed_indexes and note.text.strip() != NO_CONTENT_NOTE_TEXT
     ]
     if not items:
-        return NO_NOTES_ANSWER_TEXT
+        return Generation(text=NO_NOTES_ANSWER_TEXT, truncated=False)
     batches = batch_items(items, setup.batch_chars)
     while len(batches) > 1:
-        items = [reduce_batch(batch, request, setup, position) for position, batch in enumerate(batches)]
-        batches = batch_items(items, setup.batch_chars)
-    return reduce_batch(batches[0], request, setup, 0).text
+        batches = batch_items(reduce_round(batches, request, setup, on_progress), setup.batch_chars)
+    final = reduce_round(batches, request, setup, on_progress)[0]
+    return Generation(text=final.text, truncated=final.truncated)

@@ -1,0 +1,8 @@
+from enum import StrEnum
+
+
+class MigrationProblem(StrEnum):
+    MALFORMED_NAME = "MALFORMED_NAME"
+    DUPLICATE_VERSION = "DUPLICATE_VERSION"
+    VERSION_GAP = "VERSION_GAP"
+    EXECUTION_FAILED = "EXECUTION_FAILED"

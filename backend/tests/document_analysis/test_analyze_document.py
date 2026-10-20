@@ -1,33 +1,46 @@
 import pytest
 
 from src.document_analysis.application.analyze_document import AnalysisSetup, analyze_document
-from src.document_analysis.domain.models import ChatMessage, ChunkNote, ExtractedDocument, ExtractedPage, GenerationOptions, PageSource
+from src.document_analysis.domain.models import (
+    ChatMessage,
+    ChunkNote,
+    ExtractedDocument,
+    ExtractedPage,
+    Generation,
+    GenerationOptions,
+    PageSource,
+)
 from src.document_analysis.infrastructure.chunking.recursive_text_chunker import RecursiveTextChunker
 from src.shared.constants.prompts.analysis import UNREADABLE_NOTE_TEXT
 from src.shared.enums.error_code import ErrorCode
 from src.shared.errors.empty_model_answer_error import EmptyModelAnswerError
 from src.shared.errors.llm_unavailable_error import LlmUnavailableError
 
-OPTIONS = GenerationOptions(model="m", num_ctx=8192, temperature=0.2, top_p=0.9, keep_alive="1m", max_output_tokens=100)
+OPTIONS = GenerationOptions(model="m", num_ctx=8192, temperature=0.2, top_p=0.9, keep_alive="1m", max_output_tokens=100, think=False)
 NOTES_PROMPT = "REGLAS DE NOTAS"
 
 
 class FakeLlm:
     def __init__(
-        self, answer: str = "- punto util con contenido suficiente", fail_on_call: int | None = None, script: dict[int, str] | None = None
+        self,
+        answer: str = "- punto util con contenido suficiente",
+        fail_on_call: int | None = None,
+        script: dict[int, str] | None = None,
+        truncated: bool = False,
     ) -> None:
         self.answer = answer
         self.fail_on_call = fail_on_call
         self.script = script or {}
+        self.truncated = truncated
         self.calls: list[list[ChatMessage]] = []
         self.temperatures: list[float] = []
 
-    def generate(self, messages: list[ChatMessage], options: GenerationOptions) -> str:
+    def generate(self, messages: list[ChatMessage], options: GenerationOptions) -> Generation:
         self.calls.append(messages)
         self.temperatures.append(options.temperature)
         if self.fail_on_call == len(self.calls):
             raise LlmUnavailableError(options.model)
-        return self.script.get(len(self.calls), self.answer)
+        return Generation(text=self.script.get(len(self.calls), self.answer), truncated=self.truncated)
 
 
 class MemoryStore:
@@ -115,6 +128,15 @@ def test_changing_prompt_or_model_invalidates_the_stored_notes(change: str):
     assert analysis.reused_count == 0 and len(llm.calls) == len(analysis.notes)
 
 
+def test_changing_think_mode_invalidates_the_stored_notes():
+    store = MemoryStore()
+    analyze_document(make_document(*PAGES), make_setup(FakeLlm(), store))
+    llm = FakeLlm()
+    options = GenerationOptions(**{**vars(OPTIONS), "think": True})
+    analysis = analyze_document(make_document(*PAGES), make_setup(llm, store, NOTES_PROMPT, options))
+    assert analysis.reused_count == 0 and len(llm.calls) == len(analysis.notes)
+
+
 def test_reused_note_takes_the_page_range_of_the_current_run():
     store = MemoryStore()
     analyze_document(make_document(*PAGES), make_setup(FakeLlm(), store))
@@ -176,6 +198,16 @@ def test_progress_is_reported_after_every_chunk():
     )
     total = len(analysis.notes)
     assert reported == [(done, total) for done in range(1, total + 1)]
+
+
+def test_truncated_note_is_kept_and_stored_without_retrying():
+    store = MemoryStore()
+    llm = FakeLlm("- punto util que quedo cortado por el limite", truncated=True)
+    analysis = analyze_document(make_document(*PAGES), make_setup(llm, store))
+    assert len(llm.calls) == len(analysis.notes)
+    assert analysis.failed_indexes == ()
+    assert analysis.notes[0].text == "- punto util que quedo cortado por el limite"
+    assert len(store.notes) == len(analysis.notes)
 
 
 def test_hostile_chunk_cannot_close_the_fragment_tag():
