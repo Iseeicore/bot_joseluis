@@ -1,5 +1,5 @@
-active_profile = "qwen3b"
-summary_profile = "qwen7b"
+active_profile = "qwen4b"
+summary_profile = "qwen9b"
 
 [ollama]
 base_url = "http://127.0.0.1:11434"
@@ -12,23 +12,29 @@ summary_file = "config/prompts/summary_system.md"
 
 [storage]
 notes_dir = "data/notes"
+database_file = "data/app.db"
+uploads_dir = "data/uploads"
 
-[profiles.qwen3b]
-model = "qwen2.5:3b"
+[profiles.qwen4b]
+model = "qwen3.5:4b"
 num_ctx = 8192
 temperature = 0.2
 top_p = 0.9
 keep_alive = "30m"
 chunk_size_chars = 6000
 chunk_overlap_chars = 400
+summary_batch_chars = 15000
 max_output_tokens = 1024
+think = false
 
-[profiles.qwen7b]
-model = "qwen2.5:7b"
+[profiles.qwen9b]
+model = "qwen3.5:9b"
 num_ctx = 8192
 temperature = 0.2
 top_p = 0.9
 keep_alive = "30m"
 chunk_size_chars = 6000
 chunk_overlap_chars = 400
-max_output_tokens = 1024
+summary_batch_chars = 13000
+max_output_tokens = 2048
+think = false

@@ -1,6 +1,4 @@
 import logging
-from collections.abc import Callable
-from datetime import datetime
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -11,6 +9,7 @@ from src.shared.constants.formats import TIMESTAMP_FORMAT
 from src.shared.constants.texts.errors import INTERNAL_ERROR_TEXT, NOT_FOUND_TEXT, VALIDATION_ERROR_TEXT
 from src.shared.enums.error_code import ErrorCode
 from src.shared.errors.app_error import AppError
+from src.shared.types.clock import Clock
 from src.shared.types.error_response import ErrorDetail, ErrorResponse
 
 NOT_FOUND_STATUS = 404
@@ -18,7 +17,6 @@ VALIDATION_STATUS = 400
 INTERNAL_STATUS = 500
 
 logger = logging.getLogger(__name__)
-Clock = Callable[[], datetime]
 
 
 def build_response(

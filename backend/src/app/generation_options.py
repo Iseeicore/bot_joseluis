@@ -10,4 +10,5 @@ def to_generation_options(profile: ModelProfile) -> GenerationOptions:
         top_p=profile.top_p,
         keep_alive=profile.keep_alive,
         max_output_tokens=profile.max_output_tokens,
+        think=profile.think,
     )
